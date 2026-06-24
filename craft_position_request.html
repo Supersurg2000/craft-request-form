@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Craft Position Request — Sundt Construction</title>
+<style>
+  /* ── CONFIG: paste your Power Automate URL in the JS below ── */
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --sundt-red:   #C0392B;
+    --sundt-dark:  #1A1A1A;
+    --sundt-gray:  #F5F4F2;
+    --sundt-mid:   #E8E6E2;
+    --sundt-text:  #2C2C2C;
+    --sundt-muted: #6B6B6B;
+    --sundt-border:#D1CFC9;
+    --sundt-focus: #378ADD;
+    --radius-sm:   6px;
+    --radius-md:   10px;
+    --radius-lg:   14px;
+    --shadow-card: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.05);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--sundt-gray);
+    color: var(--sundt-text);
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 0 0 60px;
+  }
+
+  /* ── HEADER ── */
+  .page-header {
+    background: var(--sundt-dark);
+    padding: 18px 32px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .logo-mark {
+    width: 38px; height: 38px;
+    background: var(--sundt-red);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .logo-mark svg { width: 22px; height: 22px; }
+  .header-text h1 { color: #fff; font-size: 17px; font-weight: 600; letter-spacing: -.2px; }
+  .header-text p  { color: #9A9A8E; font-size: 12px; margin-top: 1px; }
+
+  /* ── PROGRESS BAR ── */
+  .progress-wrap {
+    background: #fff;
+    border-bottom: 1px solid var(--sundt-border);
+    padding: 0 32px;
+  }
+  .progress-steps {
+    display: flex;
+    max-width: 780px;
+    margin: 0 auto;
+  }
+  .pstep {
+    flex: 1;
+    padding: 14px 0 12px;
+    font-size: 12px;
+    color: var(--sundt-muted);
+    border-bottom: 3px solid transparent;
+    text-align: center;
+    cursor: pointer;
+    transition: color .15s, border-color .15s;
+    user-select: none;
+  }
+  .pstep.active  { color: var(--sundt-red);  border-color: var(--sundt-red);  font-weight: 600; }
+  .pstep.done    { color: #27AE60; border-color: #27AE60; }
+
+  /* ── MAIN LAYOUT ── */
+  .form-shell {
+    max-width: 780px;
+    margin: 28px auto 0;
+    padding: 0 20px;
+  }
+
+  /* ── SECTION CARDS ── */
+  .card {
+    background: #fff;
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-card);
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  .card-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--sundt-muted);
+    margin-bottom: 18px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--sundt-mid);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  /* ── GRID / FIELDS ── */
+  .grid { display: grid; gap: 14px; }
+  .grid.c2 { grid-template-columns: 1fr 1fr; }
+  .grid.c3 { grid-template-columns: 1fr 1fr 1fr; }
+
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  label.field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--sundt-muted);
+    letter-spacing: .02em;
+  }
+  label.field-label .req { color: var(--sundt-red); margin-left: 2px; }
+
+  input[type="text"],
+  input[type="number"],
+  input[type="date"],
+  select,
+  textarea {
+    width: 100%;
+    padding: 8px 11px;
+    font-size: 13px;
+    font-family: inherit;
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-sm);
+    background: #fff;
+    color: var(--sundt-text);
+    transition: border-color .15s, box-shadow .15s;
+    outline: none;
+    appearance: none;
+  }
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--sundt-focus);
+    box-shadow: 0 0 0 3px rgba(55,138,221,.12);
+  }
+  input.error, select.error { border-color: var(--sundt-red); }
+  textarea { resize: vertical; min-height: 80px; }
+
+  select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B6B6B' stroke-width='2' stroke-linecap='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+  }
+
+  /* ── POSITION BLOCK ── */
+  .pos-block {
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    margin-bottom: 14px;
+    background: var(--sundt-gray);
+  }
+  .pos-block-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .pos-badge {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--sundt-red);
+    background: rgba(192,57,43,.08);
+    padding: 3px 10px;
+    border-radius: 20px;
+  }
+  .btn-remove {
+    font-size: 12px;
+    color: var(--sundt-muted);
+    background: none;
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-sm);
+    padding: 4px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: color .15s, border-color .15s;
+  }
+  .btn-remove:hover { color: var(--sundt-red); border-color: var(--sundt-red); }
+
+  /* ── REQUIREMENTS GRID ── */
+  .req-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .req-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-sm);
+    padding: 7px 12px;
+  }
+  .req-name { font-size: 12px; font-weight: 600; color: var(--sundt-text); }
+  .req-opts { display: flex; gap: 14px; }
+  .req-opt  {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 12px; color: var(--sundt-muted); cursor: pointer;
+  }
+  .req-opt input { cursor: pointer; accent-color: var(--sundt-red); }
+
+  /* ── SHIFT + SUBSISTENCE ── */
+  .shift-opts { display: flex; gap: 18px; margin-top: 6px; }
+  .shift-opt {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 13px; color: var(--sundt-text); cursor: pointer;
+  }
+  .shift-opt input { accent-color: var(--sundt-red); cursor: pointer; }
+
+  .subs-row { display: flex; align-items: center; gap: 8px; }
+  .subs-row .prefix {
+    position: relative; flex: 1;
+  }
+  .subs-row .prefix span {
+    position: absolute; left: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 13px; color: var(--sundt-muted); pointer-events: none;
+  }
+  .subs-row .prefix input { padding-left: 20px; }
+  .subs-period { display: flex; gap: 10px; align-items: center; }
+  .subs-na { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--sundt-muted); cursor: pointer; }
+  .subs-na input { accent-color: var(--sundt-red); cursor: pointer; }
+
+  /* ── RECOMMENDATIONS ── */
+  .rec-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: end;
+  }
+  .rec-row .remove-rec {
+    align-self: end;
+    padding-bottom: 2px;
+  }
+
+  /* ── BUTTONS ── */
+  .btn-add {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 12px; font-weight: 600;
+    color: var(--sundt-red);
+    background: rgba(192,57,43,.06);
+    border: 1px solid rgba(192,57,43,.25);
+    border-radius: var(--radius-sm);
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .btn-add:hover { background: rgba(192,57,43,.12); }
+
+  .action-bar {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    padding-top: 4px;
+  }
+  .btn-ghost {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 13px; font-weight: 500;
+    color: var(--sundt-muted);
+    background: none;
+    border: 1px solid var(--sundt-border);
+    border-radius: var(--radius-sm);
+    padding: 9px 18px;
+    cursor: pointer;
+    transition: border-color .15s, color .15s;
+  }
+  .btn-ghost:hover { border-color: var(--sundt-muted); color: var(--sundt-text); }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-size: 13px; font-weight: 600;
+    color: #fff;
+    background: var(--sundt-red);
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 9px 22px;
+    cursor: pointer;
+    transition: background .15s, transform .1s;
+  }
+  .btn-primary:hover   { background: #a93226; }
+  .btn-primary:active  { transform: scale(.98); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+
+  /* ── TOAST ── */
+  #toast {
+    position: fixed;
+    bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+    background: #1A1A1A; color: #fff;
+    padding: 11px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transition: opacity .25s, transform .25s;
+    pointer-events: none;
+    z-index: 999;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.success { background: #1a7a4a; }
+  #toast.error   { background: #a93226; }
+
+  /* ── SUCCESS SCREEN ── */
+  #success-screen {
+    display: none;
+    text-align: center;
+    padding: 60px 20px;
+    max-width: 500px;
+    margin: 60px auto 0;
+  }
+  .success-icon {
+    width: 64px; height: 64px;
+    background: rgba(39,174,96,.12);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+  }
+  #success-screen h2 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+  #success-screen p  { color: var(--sundt-muted); font-size: 14px; margin-bottom: 24px; }
+
+  /* ── SECTION VISIBILITY ── */
+  .form-section { display: none; }
+  .form-section.visible { display: block; }
+
+  /* ── FIELD HINT ── */
+  .field-hint { font-size: 11px; color: var(--sundt-muted); margin-top: 2px; }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .page-header { padding: 14px 16px; }
+    .form-shell  { padding: 0 12px; }
+    .card        { padding: 18px 16px; }
+    .grid.c2, .grid.c3 { grid-template-columns: 1fr; }
+    .req-grid    { grid-template-columns: 1fr; }
+    .rec-row     { grid-template-columns: 1fr; }
+    .action-bar  { flex-direction: column; }
+    .btn-primary, .btn-ghost { width: 100%; justify-content: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════
+     CONFIGURATION — paste your Power Automate
+     HTTP trigger URL on the line below
+     ══════════════════════════════════════════ -->
+<script>
+  const FLOW_URL = "https://default0a53a6aa263448e0925d380ca1cd78.11.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/b11e40e6eb1c4b9b988803e4169ba8ce/triggers/manual/paths/invoke?api-version=1";
+</script>
+
+<!-- Header -->
+<header class="page-header">
+  <div class="logo-mark">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="16,2 30,10 30,22 16,30 2,22 2,10" stroke="white" stroke-width="2" fill="none"/>
+      <circle cx="16" cy="16" r="5" fill="white"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>Craft Position Request</h1>
+    <p>Sundt Construction — Workforce Planning</p>
+  </div>
+</header>
+
+<!-- Progress -->
+<div class="progress-wrap">
+  <div class="progress-steps">
+    <div class="pstep active" id="step-tab-1" onclick="goToStep(1)">Project info</div>
+    <div class="pstep"        id="step-tab-2" onclick="goToStep(2)">Positions</div>
+    <div class="pstep"        id="step-tab-3" onclick="goToStep(3)">Notes &amp; referrals</div>
+    <div class="pstep"        id="step-tab-4" onclick="goToStep(4)">Review &amp; submit</div>
+  </div>
+</div>
+
+<!-- ════════════════ FORM ════════════════ -->
+<div class="form-shell" id="form-shell">
+
+  <!-- STEP 1: PROJECT INFO -->
+  <div class="form-section visible" id="section-1">
+    <div class="card" style="margin-top:0">
+      <div class="card-title">Project information</div>
+      <div class="grid c2">
+        <div class="field">
+          <label class="field-label" for="division">Division <span class="req">*</span></label>
+          <select id="division">
+            <option value="">Choose one</option>
+            <option>Building Group</option>
+            <option>Civil Group</option>
+            <option>Industrial Group</option>
+            <option>Sundt Federal Group</option>
+            <option>Special Projects</option>
+          </select>
+        </div>
+        <div class="field">
+          <label class="field-label" for="supervisor">Supervisor <span class="req">*</span></label>
+          <input type="text" id="supervisor" placeholder="Full name">
+        </div>
+        <div class="field">
+          <label class="field-label" for="projectName">Project name <span class="req">*</span></label>
+          <input type="text" id="projectName" placeholder="e.g. Mesa Arts Center Expansion">
+        </div>
+        <div class="field">
+          <label class="field-label" for="projectNumber">Project number <span class="req">*</span></label>
+          <input type="text" id="projectNumber" placeholder="e.g. 142508">
+        </div>
+      </div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-primary" onclick="goToStep(2)">Next: Positions →</button>
+    </div>
+  </div>
+
+  <!-- STEP 2: POSITIONS -->
+  <div class="form-section" id="section-2">
+    <div class="card">
+      <div class="card-title">
+        Positions requested
+        <button class="btn-add" onclick="addPosition()">+ Add position</button>
+      </div>
+      <div id="positionsContainer"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-ghost" onclick="goToStep(1)">← Back</button>
+      <button class="btn-primary" onclick="goToStep(3)">Next: Notes →</button>
+    </div>
+  </div>
+
+  <!-- STEP 3: NOTES + REFERRALS -->
+  <div class="form-section" id="section-3">
+    <div class="card">
+      <div class="card-title">Notes</div>
+      <div class="field">
+        <label class="field-label" for="otherNotes">Other / notes</label>
+        <textarea id="otherNotes" placeholder="Special requirements, certifications, context for recruiter…"></textarea>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">
+        Recommendations
+        <button class="btn-add" onclick="addRec()">+ Add person</button>
+      </div>
+      <p style="font-size:12px;color:var(--sundt-muted);margin-bottom:14px">Referrals or former employees already identified for this role.</p>
+      <div id="recsContainer"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-ghost" onclick="goToStep(2)">← Back</button>
+      <button class="btn-primary" onclick="buildReview()">Next: Review →</button>
+    </div>
+  </div>
+
+  <!-- STEP 4: REVIEW + SUBMIT -->
+  <div class="form-section" id="section-4">
+    <div class="card" id="review-card">
+      <div class="card-title">Review your request</div>
+      <div id="review-content" style="font-size:13px;line-height:1.8;color:var(--sundt-text)"></div>
+    </div>
+    <div class="action-bar">
+      <button class="btn-ghost" onclick="goToStep(3)">← Edit</button>
+      <button class="btn-primary" id="submit-btn" onclick="submitForm()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        Submit request
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Success screen -->
+<div id="success-screen">
+  <div class="success-icon">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#27AE60" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  </div>
+  <h2>Request submitted</h2>
+  <p>Your craft position request has been received. The recruiting team will follow up shortly.</p>
+  <button class="btn-primary" onclick="resetForm()" style="margin:0 auto">Submit another request</button>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let posCount = 0;
+let recCount = 0;
+let currentStep = 1;
+const REQS = ['Background check','MSHA','CDL','OSHA 10','OSHA 30','Weld test'];
+
+// ── Steps ──────────────────────────────────────────────
+function goToStep(n) {
+  if (n > 1 && !validateStep(currentStep)) return;
+  document.querySelectorAll('.form-section').forEach((s,i) => {
+    s.classList.toggle('visible', i+1 === n);
+  });
+  document.querySelectorAll('.pstep').forEach((t,i) => {
+    t.classList.remove('active','done');
+    if (i+1 === n) t.classList.add('active');
+    if (i+1 < n)  t.classList.add('done');
+  });
+  currentStep = n;
+  window.scrollTo({top: 0, behavior:'smooth'});
+}
+
+function validateStep(n) {
+  if (n === 1) {
+    const fields = ['division','supervisor','projectName','projectNumber'];
+    let ok = true;
+    fields.forEach(id => {
+      const el = document.getElementById(id);
+      const empty = !el.value.trim();
+      el.classList.toggle('error', empty);
+      if (empty) ok = false;
+    });
+    if (!ok) { showToast('Please fill in all required fields','error'); return false; }
+  }
+  if (n === 2) {
+    const blocks = document.querySelectorAll('.pos-block');
+    if (!blocks.length) { showToast('Add at least one position','error'); return false; }
+    let ok = true;
+    blocks.forEach(b => {
+      const t = b.querySelector('.pos-title');
+      if (!t.value.trim()) { t.classList.add('error'); ok = false; }
+    });
+    if (!ok) { showToast('Position title is required for each entry','error'); return false; }
+  }
+  return true;
+}
+
+// ── Position blocks ────────────────────────────────────
+function addPosition() {
+  posCount++;
+  const idx = posCount;
+  const div = document.createElement('div');
+  div.className = 'pos-block';
+  div.id = `pos_${idx}`;
+  div.innerHTML = `
+    <div class="pos-block-header">
+      <span class="pos-badge">Position ${idx}</span>
+      ${idx > 1 ? `<button class="btn-remove" onclick="document.getElementById('pos_${idx}').remove()">✕ Remove</button>` : ''}
+    </div>
+    <div class="grid c2" style="margin-bottom:12px">
+      <div class="field">
+        <label class="field-label">Position title <span class="req">*</span></label>
+        <input type="text" class="pos-title" id="pos_${idx}_title" placeholder="e.g. Ironworker Journeyman">
+      </div>
+      <div class="field">
+        <label class="field-label">Open positions</label>
+        <input type="number" id="pos_${idx}_count" min="1" placeholder="1">
+      </div>
+      <div class="field">
+        <label class="field-label">Start date</label>
+        <input type="date" id="pos_${idx}_start">
+      </div>
+      <div class="field">
+        <label class="field-label">Duration of assignment</label>
+        <input type="text" id="pos_${idx}_duration" placeholder="e.g. 6 months">
+      </div>
+    </div>
+    <div class="grid c2" style="margin-bottom:12px">
+      <div class="field">
+        <label class="field-label">Hourly rate ($)</label>
+        <div class="subs-row">
+          <div class="prefix"><span>$</span><input type="number" id="pos_${idx}_rate" min="0" step="0.01" placeholder="0.00"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Subsistence</label>
+        <div class="subs-row">
+          <div class="prefix" style="max-width:110px"><span>$</span><input type="number" id="pos_${idx}_subsAmt" min="0" step="0.01" placeholder="0.00"></div>
+          <div class="subs-period">
+            <label class="subs-na"><input type="radio" name="pos_${idx}_subsPer" value="wk"> /wk</label>
+            <label class="subs-na"><input type="radio" name="pos_${idx}_subsPer" value="day"> /day</label>
+          </div>
+          <label class="subs-na"><input type="checkbox" id="pos_${idx}_subsNA"> N/A</label>
+        </div>
+      </div>
+    </div>
+    <div class="grid c2" style="margin-bottom:12px">
+      <div class="field">
+        <label class="field-label">Shift</label>
+        <div class="shift-opts">
+          <label class="shift-opt"><input type="radio" name="pos_${idx}_shift" value="Days"> Days</label>
+          <label class="shift-opt"><input type="radio" name="pos_${idx}_shift" value="Nights"> Nights</label>
+          <label class="shift-opt"><input type="radio" name="pos_${idx}_shift" value="Weekends"> Weekends</label>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Hours per week</label>
+        <input type="number" id="pos_${idx}_hours" min="1" max="168" placeholder="40">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Project / position requirements</label>
+      <div class="req-grid">
+        ${REQS.map(r => {
+          const key = r.replace(/\s+/g,'_').toLowerCase();
+          return `<div class="req-item">
+            <span class="req-name">${r}</span>
+            <div class="req-opts">
+              <label class="req-opt"><input type="radio" name="pos_${idx}_req_${key}" value="Y"> Y</label>
+              <label class="req-opt"><input type="radio" name="pos_${idx}_req_${key}" value="N/A"> N/A</label>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  document.getElementById('positionsContainer').appendChild(div);
+}
+
+// ── Recommendations ────────────────────────────────────
+function addRec() {
+  recCount++;
+  const idx = recCount;
+  const div = document.createElement('div');
+  div.className = 'rec-row';
+  div.id = `rec_${idx}`;
+  div.innerHTML = `
+    <div class="field">
+      <label class="field-label">Name</label>
+      <input type="text" id="rec_${idx}_name" placeholder="Full name">
+    </div>
+    <div class="field">
+      <label class="field-label" style="display:flex;justify-content:space-between">
+        Phone
+        <button class="btn-remove remove-rec" onclick="document.getElementById('rec_${idx}').remove()">✕</button>
+      </label>
+      <input type="text" id="rec_${idx}_phone" placeholder="(602) 555-0100">
+    </div>
+  `;
+  document.getElementById('recsContainer').appendChild(div);
+}
+
+// ── Collect data ───────────────────────────────────────
+function getFormData() {
+  const positions = [];
+  document.querySelectorAll('.pos-block').forEach(block => {
+    const id = block.id;
+    const g = (s) => { const e = document.getElementById(`${id}_${s}`); return e ? e.value : ''; };
+    const r = (n) => { const e = document.querySelector(`input[name="${n}"]:checked`); return e ? e.value : ''; };
+    const reqs = {};
+    REQS.forEach(req => {
+      const key = req.replace(/\s+/g,'_').toLowerCase();
+      reqs[req] = r(`${id}_req_${key}`);
+    });
+    positions.push({
+      positionTitle:    g('title'),
+      openPositions:    g('count') || '1',
+      startDate:        g('start'),
+      duration:         g('duration'),
+      hourlyRate:       g('rate'),
+      subsidenceAmount: g('subsAmt'),
+      subsidencePeriod: r(`${id}_subsPer`),
+      subsidenceNA:     document.getElementById(`${id}_subsNA`)?.checked || false,
+      shift:            r(`${id}_shift`),
+      hoursPerWeek:     g('hours'),
+      requirements:     reqs
+    });
+  });
+
+  const recs = [];
+  document.querySelectorAll('[id^="rec_"][id$="_name"]').forEach(el => {
+    const idx = el.id.replace('rec_','').replace('_name','');
+    const phone = document.getElementById(`rec_${idx}_phone`);
+    if (el.value || (phone && phone.value)) {
+      recs.push({ name: el.value, phone: phone ? phone.value : '' });
+    }
+  });
+
+  return {
+    division:        document.getElementById('division').value,
+    supervisor:      document.getElementById('supervisor').value,
+    projectName:     document.getElementById('projectName').value,
+    projectNumber:   document.getElementById('projectNumber').value,
+    positions,
+    otherNotes:      document.getElementById('otherNotes').value,
+    recommendations: recs,
+    submittedAt:     new Date().toISOString(),
+    submittedBy:     ''
+  };
+}
+
+// ── Review screen ──────────────────────────────────────
+function buildReview() {
+  if (!validateStep(3)) return;
+  const d = getFormData();
+  let html = `
+    <table style="width:100%;border-collapse:collapse;font-size:13px">
+      <tr><td style="padding:6px 0;color:var(--sundt-muted);width:140px">Division</td><td style="padding:6px 0;font-weight:600">${d.division || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--sundt-muted)">Supervisor</td><td style="padding:6px 0;font-weight:600">${d.supervisor || '—'}</td></tr>
+      <tr><td style="padding:6px 0;color:var(--sundt-muted)">Project</td><td style="padding:6px 0;font-weight:600">${d.projectName} — #${d.projectNumber}</td></tr>
+    </table>
+    <hr style="border:none;border-top:1px solid var(--sundt-mid);margin:14px 0">
+  `;
+  d.positions.forEach((p,i) => {
+    const reqs = Object.entries(p.requirements).filter(([,v]) => v === 'Y').map(([k]) => k).join(', ') || 'None';
+    html += `
+      <div style="background:var(--sundt-gray);border:1px solid var(--sundt-border);border-radius:8px;padding:14px;margin-bottom:10px">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px;color:var(--sundt-red)">Position ${i+1}: ${p.positionTitle || '—'}</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <tr><td style="color:var(--sundt-muted);padding:3px 0;width:140px">Open positions</td><td>${p.openPositions}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Start date</td><td>${p.startDate || '—'}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Duration</td><td>${p.duration || '—'}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Hourly rate</td><td>${p.hourlyRate ? '$'+p.hourlyRate : '—'}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Subsistence</td><td>${p.subsidenceNA ? 'N/A' : (p.subsidenceAmount ? '$'+p.subsidenceAmount+' /'+p.subsidencePeriod : '—')}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Shift</td><td>${p.shift || '—'}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Hours/week</td><td>${p.hoursPerWeek || '—'}</td></tr>
+          <tr><td style="color:var(--sundt-muted);padding:3px 0">Requirements</td><td>${reqs}</td></tr>
+        </table>
+      </div>
+    `;
+  });
+  if (d.otherNotes) {
+    html += `<hr style="border:none;border-top:1px solid var(--sundt-mid);margin:14px 0">
+      <div style="color:var(--sundt-muted);font-size:12px;margin-bottom:4px">Notes</div>
+      <div style="font-size:13px">${d.otherNotes}</div>`;
+  }
+  if (d.recommendations.length) {
+    html += `<hr style="border:none;border-top:1px solid var(--sundt-mid);margin:14px 0">
+      <div style="color:var(--sundt-muted);font-size:12px;margin-bottom:8px">Recommendations (${d.recommendations.length})</div>`;
+    d.recommendations.forEach(r => {
+      html += `<div style="font-size:13px;margin-bottom:4px">${r.name}${r.phone ? ' — '+r.phone : ''}</div>`;
+    });
+  }
+  document.getElementById('review-content').innerHTML = html;
+  goToStep(4);
+}
+
+// ── Submit ─────────────────────────────────────────────
+async function submitForm() {
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Submitting…';
+
+  const data = getFormData();
+
+  if (!FLOW_URL || FLOW_URL === 'PASTE_POWER_AUTOMATE_URL_HERE') {
+    setTimeout(() => {
+      showSuccess();
+      console.log('Form data (no flow URL configured):', JSON.stringify(data, null, 2));
+    }, 800);
+    return;
+  }
+
+  try {
+    const res = await fetch(FLOW_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    });
+    if (res.ok) {
+      showSuccess();
+    } else {
+      throw new Error(`HTTP ${res.status}`);
+    }
+  } catch (err) {
+    showToast('Submission failed — please try again or contact IT', 'error');
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg> Submit request`;
+  }
+}
+
+function showSuccess() {
+  document.getElementById('form-shell').style.display = 'none';
+  document.querySelector('.progress-wrap').style.display = 'none';
+  document.getElementById('success-screen').style.display = 'block';
+}
+
+function resetForm() {
+  document.getElementById('form-shell').style.display = 'block';
+  document.querySelector('.progress-wrap').style.display = 'block';
+  document.getElementById('success-screen').style.display = 'none';
+  document.getElementById('positionsContainer').innerHTML = '';
+  document.getElementById('recsContainer').innerHTML = '';
+  posCount = 0; recCount = 0;
+  ['division','supervisor','projectName','projectNumber','otherNotes'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  addPosition();
+  addRec(); addRec(); addRec();
+  goToStep(1);
+}
+
+// ── Toast ──────────────────────────────────────────────
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (type ? ' '+type : '');
+  setTimeout(() => t.className = '', 3500);
+}
+
+// ── Init ───────────────────────────────────────────────
+addPosition();
+addRec(); addRec(); addRec();
+</script>
+</body>
+</html>
